@@ -1,0 +1,3 @@
+COMMAND: r.stream.extract --overwrite elevation="Yaque_dem" threshold=30 mexp=0 stream_length=0 memory=300 stream_raster="red30" stream_vector="red30"
+GISDBASE: mi-asignacion/mi-grass
+LOCATION: rioydn MAPSET: PERMANENT USER: analaroja29 DATE: Fri May  1 16:55:25 2020

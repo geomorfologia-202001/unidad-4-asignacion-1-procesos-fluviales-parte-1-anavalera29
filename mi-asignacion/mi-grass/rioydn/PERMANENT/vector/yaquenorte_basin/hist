@@ -1,0 +1,3 @@
+COMMAND: r.to.vect --overwrite --quiet input="yaquenorte_basin" output="yaquenorte_basin" type="area" column="value"
+GISDBASE: mi-asignacion/mi-grass
+LOCATION: rioydn MAPSET: PERMANENT USER: analaroja29 DATE: Fri May  1 16:55:23 2020

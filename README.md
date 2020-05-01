@@ -82,15 +82,22 @@ Dentro del bloque de código a continuación, carga el paquete `rgrass7` y crea 
 -   Verifica la metadata de tu región con la función `gmeta`.
 
 ``` r
+
+library(rgrass7)
+## Loading required package: XML
+## GRASS GIS interface loaded with GRASS version: GRASS 7.8.2 (2019)
+## and location: rioydn
 loc <- initGRASS(gisBase = "/usr/lib/grass78/",
-                 home = '...',
-                 gisDbase = '...',
-                 location = '...',
-                 mapset = '...',
+                 home = 'mi-asignacion',
+                 gisDbase = 'mi-asignacion/mi-grass',
+                 location = 'rioydn',
+                 mapset = 'PERMANENT',
                  override = TRUE)
 ```
 
 *Describe, en un párrafo, usando tus propias palabras, el procedimiento que acabas de ejecutar. Si aplica, en un párrafo adicional, plantea las ventajas y desventajas de usar GRASS desde R*
+
+Se creó una carpeta de inicio, cargando una ruta de datos para trabajar en GRASS desde Rstudio la cual puede almacenar distintos datos, desde mapas, tablas de atributos, entre otras.
 
 ### EJERCICIO 2: Define resolución/extensión utilizando una fuente. Redacta de forma resumida el procedimiento
 
@@ -108,7 +115,93 @@ Escribe el código necesario para definir la proyección de tu región de GRASS 
 
 -   Verifica la metadata de tu región con la función `gmeta`.
 
+``` r
+gmeta()
+## gisdbase    mi-asignacion/mi-grass 
+## location    rioydn 
+## mapset      PERMANENT 
+## rows        325 
+## columns     363 
+## north       2122107 
+## south       2092972 
+## west        287831 
+## east        320371.9 
+## nsres       89.64434 
+## ewres       89.64434 
+## projection  +proj=utm +no_defs +zone=19 +a=6378137 +rf=298.257223563
+## +towgs84=0.000,0.000,0.000 +type=crs +to_meter=1
+dem <-'mi-asignacion/data-asignada/demydn.tif'
+execGRASS(
+ cmd = 'g.proj',
+ flags = c('t','c'),
+  georef=dem
+)
+## Projection information updated
+gmeta()
+## gisdbase    mi-asignacion/mi-grass 
+## location    rioydn 
+## mapset      PERMANENT 
+## rows        325 
+## columns     363 
+## north       2122107 
+## south       2092972 
+## west        287831 
+## east        320371.9 
+## nsres       89.64434 
+## ewres       89.64434 
+## projection  +proj=utm +no_defs +zone=19 +a=6378137 +rf=298.257223563
+## +towgs84=0.000,0.000,0.000 +type=crs +to_meter=1
+
+execGRASS(
+  cmd = 'r.in.gdal',
+  flags=c('overwrite','quiet'),
+  parameters=list(
+    input=dem,
+    output='Yaque'
+  )
+)
+## Warning in execGRASS(cmd = "r.in.gdal", flags = c("overwrite", "quiet"), : The command:
+## r.in.gdal --overwrite --quiet input=mi-asignacion/data-asignada/demydn.tif output=Yaque
+## produced at least one warning during execution:
+## WARNING: Raster map <Yaque> already exists and will be overwritten
+## WARNING: Raster map <Yaque> already exists and will be overwritten
+
+execGRASS(
+  cmd = 'g.region',
+  parameters=list(
+    raster = 'Yaque',
+    align = 'Yaque'
+  )
+)
+
+execGRASS(
+  'g.list',
+  flags = 't',
+  parameters = list(
+    type = c('raster', 'vector')
+  )
+)
+## raster/Yaque
+
+gmeta()
+## gisdbase    mi-asignacion/mi-grass 
+## location    rioydn 
+## mapset      PERMANENT 
+## rows        325 
+## columns     363 
+## north       2122107 
+## south       2092972 
+## west        287831 
+## east        320371.9 
+## nsres       89.64434 
+## ewres       89.64434 
+## projection  +proj=utm +no_defs +zone=19 +a=6378137 +rf=298.257223563
+## +towgs84=0.000,0.000,0.000 +type=crs +to_meter=1
+```
+
 *Describe, en un párrafo, usando tus propias palabras, el procedimiento que acabas de ejecutar*
+
+Se creó un dem con la ruta asignada, donde se introdujo un mapa tipo raster en la carpeta de estudio de grass.
 
 ### EJERCICIO 3: Explora y compara mapas de GRASS y R. Interpreta el resultado
 
@@ -123,7 +216,7 @@ Explora y compara mapas de pendientes generados en R y en GRASS. Usa el vídeo d
 -   **En R**:
 
     -   Carga los paquetes `sp` y `raster`, y ejecuta la función `use_sp()`; esto preparará a R para definir que los mapas de GRASS que importes con el paquete `rgrass7` serán objetos `Spatial*` y `Raster*`.
-    -   Importa el DEM desde la región de GRASS mediante la función `readRAST`. Convierte tu DEM a raster con la función `raster` (puedes también hacerlo en un único paso ejecutando `raster(readRAST(...))`). Representa tu raster con la función `plot`.
+    -   Importa el DEM desde la región de GRASS mediante la función `readRAST`. Convierte tu DEM a raster con la función `raster` (puedes también hacerlo en un único paso ejecutando `raster(readRAST(Yaque))`). Representa tu raster con la función `plot`.
     -   Importa tu límite de cuenca a R. Para ello, carga el paquete `sf`, importa el archivo del límite de tu cuenca con la función `st_read`. Represéntalo con la función `plot` pero añadiendo el argumento `add=T`, para que se superponga sobre el DEM.
     -   Usando el límite de cuenca, corta el DEM con la función `crop`, y enmascáralo con `mask`.
     -   Genera un mapa de pendiente en R a partir del DEM con la función `terrain` del paquete `raster`.
@@ -148,6 +241,28 @@ execGRASS(
     type = c('raster', 'vector')
   )
 )
+
+library( sp )
+use_sp ()
+dem_sp  <- (readRAST('Yaque'))
+plot(dem_sp) 
+
+library ( sf )
+rutayaquenorte  <-  'mi-asignacion/data-asignada/cuenca_rio_yaque_del_norte.geojson'
+ yaquenorte  <- st_read (rutayaquenorte)
+plot ( yaquenorte , add = T )
+
+library(raster)
+dem_r0  <- raster ( dem_sp )
+ dem_r1  <- crop ( dem_r0 , yaquenorte )
+ dem_pant  <- mask ( dem_r1 , yaquenorte )
+plot ( dem_pant )
+
+pend_pant  <-  terrain( x  =  dem_pant )
+plot ( pend_pant )
+hist ( dem_pant )
+summary(dem_pant)
+
 raster/MASK
 ...
 ```

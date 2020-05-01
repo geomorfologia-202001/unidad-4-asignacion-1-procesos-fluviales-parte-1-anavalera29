@@ -1,5 +1,5 @@
 ---
-output: github_document
+output: html_document
 bibliography: biblio.bib
 csl: apa.csl
 editor_options: 
@@ -12,7 +12,7 @@ knitr::opts_chunk$set(
   collapse=TRUE,
   out.width='100%',
   fig.path = "misfiguras/",
-  eval = F
+  eval = T
 )
 ```
 
@@ -97,17 +97,20 @@ Dentro del bloque de código a continuación, carga el paquete `rgrass7` y crea 
 
 
 ```{r}
+
+
+library(rgrass7)
 loc <- initGRASS(gisBase = "/usr/lib/grass78/",
-                 home = '...',
-                 gisDbase = '...',
-                 location = '...',
-                 mapset = '...',
+                 home = 'mi-asignacion',
+                 gisDbase = 'mi-asignacion/mi-grass',
+                 location = 'rioydn',
+                 mapset = 'PERMANENT',
                  override = TRUE)
 ```
 
 *Describe, en un párrafo, usando tus propias palabras, el procedimiento que acabas de ejecutar. Si aplica, en un párrafo adicional, plantea las ventajas y desventajas de usar GRASS desde R*
 
-
+Se creó una carpeta de inicio, cargando una ruta de datos para trabajar en GRASS desde Rstudio la cual puede almacenar distintos datos, desde mapas, tablas de atributos, entre otras informaciones. 
 
 ### EJERCICIO 2: Define resolución/extensión utilizando una fuente. Redacta de forma resumida el procedimiento
 
@@ -127,11 +130,47 @@ Escribe el código necesario para definir la proyección de tu región de GRASS 
 
 ```{r}
 
+gmeta()
+dem <-'mi-asignacion/data-asignada/demydn.tif'
+execGRASS(
+ cmd = 'g.proj',
+ flags = c('t','c'),
+  georef=dem
+)
+
+gmeta()
+
+execGRASS(
+  cmd = 'r.in.gdal',
+  flags=c('overwrite','quiet'),
+  parameters=list(
+    input=dem,
+    output='Yaque_dem'
+  )
+)
+
+execGRASS(
+  cmd = 'g.region',
+  parameters=list(
+    raster = 'Yaque_dem',
+    align = 'Yaque_dem'
+  )
+)
+
+execGRASS(
+  'g.list',
+  flags = 't',
+  parameters = list(
+    type = c('raster', 'vector')
+  )
+)
+
+gmeta()
 ```
 
 *Describe, en un párrafo, usando tus propias palabras, el procedimiento que acabas de ejecutar*
 
-
+Se creó una carpeta en Grass, en la cual se introdujo un dem o modelo digital de elevación con una ruta asignada. Donde dicha carpeta guardará los mapas realisados en Rstudio al igaul que los ejecutados desde Grass.
 
 ### EJERCICIO 3: Explora y compara mapas de GRASS y R. Interpreta el resultado
 
@@ -146,7 +185,7 @@ Explora y compara mapas de pendientes generados en R y en GRASS. Usa el vídeo d
 - **En R**:
 
     - Carga los paquetes `sp` y `raster`, y ejecuta la función `use_sp()`; esto preparará a R para definir que los mapas de GRASS que importes con el paquete `rgrass7` serán objetos `Spatial*` y `Raster*`.
-    - Importa el DEM desde la región de GRASS mediante la función `readRAST`. Convierte tu DEM a raster con la función `raster` (puedes también hacerlo en un único paso ejecutando `raster(readRAST(...))`). Representa tu raster con la función `plot`.
+    - Importa el DEM desde la región de GRASS mediante la función `readRAST`. Convierte tu DEM a raster con la función `raster` (puedes también hacerlo en un único paso ejecutando `raster(readRAST(Yaque))`). Representa tu raster con la función `plot`.
     - Importa tu límite de cuenca a R. Para ello, carga el paquete `sf`, importa el archivo del límite de tu cuenca con la función `st_read`. Represéntalo con la función `plot` pero añadiendo el argumento `add=T`, para que se superponga sobre el DEM.
     - Usando el límite de cuenca, corta el DEM con la función `crop`, y enmascáralo con `mask`.
     - Genera un mapa de pendiente en R a partir del DEM con la función `terrain` del paquete `raster`.
@@ -163,7 +202,7 @@ Explora y compara mapas de pendientes generados en R y en GRASS. Usa el vídeo d
 
 >**Nota sobre la máscara**. Si al ejecutar el addon `g.list` uno de los mapas de denomina `raster/MASK`, como en el ejemplo a continuación, quiere decir que hay una máscara aplicada, con lo que todos los algoritmos se ejecutan únicamente dentro de dicha área.
 
-```{r, eval=F}
+```{r}
 execGRASS(
   'g.list',
   flags = 't',
@@ -171,8 +210,60 @@ execGRASS(
     type = c('raster', 'vector')
   )
 )
-raster/MASK
-...
+
+library(sp)
+use_sp ()
+yaque_sp  <- (readRAST('Yaque_dem'))
+plot (yaque_sp)
+
+library ( sf )
+rutayaquenorte  <-  'mi-asignacion/data-asignada/cuenca_rio_yaque_del_norte.geojson'
+yaquenorte  <- st_read (rutayaquenorte)
+plot (yaquenorte , add = T , col = 'transparent' , border = 'black' , lwd = 5 )
+
+library(raster)
+dem_y0  <- raster(yaque_sp)
+dem_y1  <- crop(dem_y0 , yaquenorte)
+dem_yaque  <- mask (dem_y1 , yaquenorte)
+plot (dem_yaque)
+
+dem_yaquep_r  <-  terrain(x  =  dem_yaque, opt = 'slope', unit = 'degrees')
+plot (dem_yaquep_r)
+hist (dem_yaquep_r)
+summary(dem_yaquep_r)
+
+writeVECT (as_Spatial (yaquenorte), 'yaque_v' , v.in.ogr_flags = c('quiet', 'overwrite'))
+execGRASS(
+  cmd = 'g.region',
+  parameters = list(
+     vector = 'yaque_v'
+  )
+)
+
+execGRASS (
+  "r.mask",
+  flags = c('overwrite','quiet'),
+   parameters = list(
+     vector = 'yaque_v'
+  )
+)
+
+execGRASS (
+  cmd  =  'r.slope.aspect',
+  flags = c('overwrite','quiet'),
+   parameters = list(
+     elevation = 'Yaque_dem',
+     slope = 'slope' ,
+     aspect = 'aspect',
+     pcurvature = 'pcurv',
+     tcurvature = 'tcurv')
+  )
+
+dem_yaquep_g <- raster(readRAST('slope'))
+plot (dem_yaquep_g); par(mfrow=c(1,1))
+
+
+
 ```
 
 - **En R nuevamente**. Compara los estadísticos descriptivos de los dos mapas de pendiente, es decir, del generado en R y del generado en GRASS, mediante la función `summary`. Genera también un histograma de los valores de pendiente (función `hist`), así como dos mapas de pendiente mediante la función `plot`. Para colocar ambos histogramas o ambos mapas enfrentados, usa `par(mfrow=c(1,2))`, de manera que tu dispositivo gráfico quedará dividido en dos columnas en lo adelante. Si deseas volver a ponerlo en modo 1 columna, ejecuta `par(mfrow=c(1,1))`. Teniendo los histogramas y los mapas enfrentados, podrás interpretar mejor tus resultados.
@@ -180,11 +271,37 @@ raster/MASK
 - **En GRASS desde R**. No olvides volver a poner la región de GRASS a su estado anterior, quitando la máscara (addon `r.mask`) y utilizando la extensión del DEM como límite de la región (addon `g.region`). Puedes comprobar que no hay máscara aplicada si al ejecutar el addon `g.list` NO te aparece el mapa `raster/MASK`.
 
 ```{r}
+summary(dem_yaquep_r)
+summary(dem_yaquep_g)
+
+par(mfrow=c(1,2))
+hist (dem_yaquep_r)
+hist (dem_yaquep_g)
+
+plot (dem_yaquep_r)
+plot (dem_yaquep_g)
+
+execGRASS(
+  "g.region",
+  parameters=list(
+    raster = "Yaque_dem"
+  )
+)
+execGRASS(
+  "r.mask",
+  flags = c('r','quiet')
+)
 
 ```
 
 *Tu párrafo interpretativo debajo de esta línea. Algunas preguntas clave: ¿Hay diferencias? ¿Son significativas? ¿Notas diferencias entre ambos mapas de pendiente en algunas áreas más que en otras?*
 
+Este ejercio consistió en explorar mapas o modelos digitales de elevaciones desde grass en r y viceversa, donde se ejecutaron varios comando en cada caso. Como por ejemplo, definir una región e introducir en ambas un raster y un vector, a partir de las informaciones establecidas.
+
+Existe diferencias entre ambos mapas, el realizado en R muestra poco detalles a simple vista, en comparación al hecho desde Grass, lo que dificulta su interpretación con rápidez. En tanto que, el de grass se puede identificar punto clave con ligereza, como por ejemplo, la zona más alta (amarrilla) o la zona más baja (azul oscuro). En cuanto a la pendiente en Grass se puede observar mejor, razón de que los espacios son mejor leibles, es decir mejor marcados. 
+
+En terminos estadísticos la cuenca muestra valores no muy camabiantes en la pendiente generada desde R, como la realizada desde Grass. Donde
+los valores mínimos y máximos en ambos programas son iguales (2.348º) y (44.08737), es decir, tanta su desembocadura como su punto más alto tienen el mismo valor. En tanto que, el 25% de lo que mide la pendiente existe una ligera diferencia, en lo que respecta a R la pendiente tiene una medida de (12.6333º) y en Grass la pendiente mide (12.4806º). Mientras que en el 75% de su valor, la pendiente medida en R tiene (23.3746º) y en Grass tiene una medida de (23.2384º). Además que, el valor medio de la pendiente cambia ligeramente en R de (17.7066º), con respecto a Grass que es de (17.5676º). Los valores de NA's son diferentes en las dos pendiente en R (1040º) y en Grass (9637º). 
 
 
 ### EJERCICIO 4: Extrae el límite de tu cuenca hidrográfica. Descríbelo
@@ -217,13 +334,73 @@ raster/MASK
 - Haz también un mapa de tu cuenca con la función `mapview` del paquete homónimo.
 
 
+
 ```{r}
+execGRASS(
+  "r.watershed",
+  flags = c('quiet', 'overwrite'),
+  parameters = list(
+    elevation = "Yaque_dem",
+    accumulation = "accum-de-rwshed",
+    stream = "stream-de-rwshed",
+    drainage = "drainage-dir-de-rwshed",
+    basin = 'basins',
+    half_basin = 'half-basins',
+    threshold = 80
+  )
+)
+
+yaquen_out <- c(311450,2109960)
+yaquen_out
+
+execGRASS(
+  "r.water.outlet",
+  flags = c('quiet', 'overwrite'),
+  parameters = list(
+    input = 'drainage-dir-de-rwshed',
+    output = 'yaquenorte_basin',
+    coordinates = yaquen_out
+  )
+)
+
+execGRASS(
+  "r.to.vect",
+  flags = c('quiet', 'overwrite'),
+  parameters = list(
+    input = 'yaquenorte_basin',
+    output = 'yaquenorte_basin',
+    type = 'area'
+  )
+)
+
+execGRASS(
+  cmd = 'g.region',
+  parameters = list(
+     vector  =  "yaquenorte_basin"
+  )
+)
+
+execGRASS (
+  "r.mask",
+   parameters = list(
+     vector = 'yaquenorte_basin'
+  )
+)
+
+par(mfrow=c(1,2))
+
+yaque_bas <- readVECT('yaquenorte_basin')
+yaque_bas
+plot(yaque_bas)
+
+library(mapview)
+mapview(yaque_bas)
 
 ```
 
 *Describe, en términos morfométricos, el límite de tu cuenca y abunda sobre ella. Algunas preguntas guía: ¿Qué forma tiene? ¿A qué atribuyes su forma? ¿Es importante esta cuenca? ¿Por qué?*
 
-
+La cuenca del río Yaque del Norte posee una pendiente probablemente media alta, lo que indica aparentemente que el relieve es accidentado.Tambien los flujos fluviales que alimentan el canal principal presentan cursos largos. Dicha región, presenta una forma convexa, a lo que se le puede atribuir a las diferentes elevaciones que presenta su pendiente. Posiblemente por encontrarse entre el medio de dos sistemas montañosos (cordillera central y sierra septentrional). La cuenca del río Yaque del Norte es la más importante del país, según varios estudio. Posee el río más largo del país e importantes presas hidroeléctricas se han establecido en su área, además, de la gran biodiversidad que tienen como hábitat ese ambiente natural.
 
 ### EJERCICIO 5: Extrae la red de drenaje de tu cuenca utilizando dos umbrales de acumulación distintos. Describe e interpreta los resultados.
 
@@ -247,10 +424,76 @@ Usando el addon de GRASS `r.stream.extract`, realiza las siguientes tareas:
     - Ejecuta `leaflet`, añade `Stamen.Terrain` como proveedor de fondo, añade (usando la pipa `%>%`) cada red transformada con `addPolylines` (ver vídeo y script de referencia) y finalmente añade un botón que te permita activar y desactivar cada red. En este mapa podrás hacer zoom en distintas áreas y tendrás más control del mapa.
 
 ```{r}
+execGRASS (
+  "r.stream.extract",
+  flags = 'overwrite',
+    parameters = list(
+    elevation  = 'Yaque_dem',
+    threshold = 80 ,
+    stream_raster  = 'red80',
+    stream_vector  = 'red80'
+  )
+)
+
+par(mfrow=c(1,1))
+par(mfrow=c(1,2))
+execGRASS (
+  "r.stream.extract",
+  flags = 'overwrite',
+    parameters = list(
+    elevation  = 'Yaque_dem',
+    threshold = 30 ,
+    stream_raster  = 'red30',
+    stream_vector  = 'red30'
+  )
+)
+
+execGRASS(
+  'g.list',
+  flags = 't',
+  parameters = list(
+    type = c('raster', 'vector')
+  )
+)
+
+red80 <- readVECT('red80')
+red30 <- readVECT('red30')
+
+par(mfrow=c(1,1))
+
+plot(red80)
+plot(red30)
+par(mfrow=c(1,2))
+plot (red80)
+
+plot(red30)
+
+red80ll <- spTransform(red80, CRSobj = CRS("+init=epsg:4326"))
+red80ll 
+red30ll <- spTransform(red30, CRSobj = CRS("+init=epsg:4326"))
+red30ll
+
+library(leaflet)
+leaflet() %>% 
+ addPolylines(data = red80ll, weight = 3, opacity = 0.7, group = 'str_vect') %>% 
+  leafem::addHomeButton(extent(red80ll), 'Ver todo') %>% 
+  addLayersControl(
+    overlayGroups = c('terrain','str_vect','str_raster'),
+    options = layersControlOptions(collapsed=FALSE))
+
+leaflet() %>% 
+ addPolylines(data = red30ll, weight = 3, opacity = 0.7, group = 'str_vect') %>% 
+  leafem::addHomeButton(extent(red30ll), 'Ver todo') %>% 
+  addLayersControl(
+    overlayGroups = c('terrain','str_vect','str_raster'),
+    options = layersControlOptions(collapsed=FALSE))
+
 
 ```
 
 *Describe tus dos redes de drenaje e interprétalas. Algunas preguntas guía: En dos líneas, ¿cómo describirías tus dos redes? ¿Cuál es/son la/s diferencia/s principales entre ambas redes, es decir, entre la generada con umbral 30 y la generada con 80? Clasifica tu tipo de red según morfología, apoyándote en el material de apoyo de la clase (e.g. dendrítica, paralela, etc.) [@gutierrez2008geomorfologia;@pedraza1996geomorfologia].*
+
+Las redes de drenaje de la cuenca río Yaque del Norte son abundante, lo que se asume que en dicha cuenca existe varios afluentes que alimentan el canal principal. Presenta una ramificación amplia, posiblemente sea de tipo angulado; razón de, que sus redes forma ángulos grandes. Posiblemente dichas características sean productos de eventuales fallas tectónicas que puedan existir en la zona. Las redes con diferentes tipos de umbral se notan un poco diferente, la de umbral 30 (red30) presenta más ramificación y forma ángulos más grande con respecto a la red (red80).
 
 
 # Referencias

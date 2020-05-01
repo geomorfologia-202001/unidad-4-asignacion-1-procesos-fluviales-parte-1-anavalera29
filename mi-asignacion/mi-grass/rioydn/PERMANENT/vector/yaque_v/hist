@@ -1,0 +1,8 @@
+COMMAND: v.in.ogr --overwrite --quiet input="mi-asignacion/mi-grass/rioydn/PERMANENT/.tmp/rstudio-ubuntu-s-1vcpu-2gb-nyc3-01/794.0.gpkg" layer="yaque_v" output="yaque_v" min_area=0.0001 type="" snap=-1
+GISDBASE: mi-asignacion/mi-grass
+LOCATION: rioydn MAPSET: PERMANENT USER: analaroja29 DATE: Fri May  1 16:55:20 2020
+-----------------------------------------------------
+1 input polygons
+Total area: 1.34741E+08 (1 areas)
+Overlapping area: 0 (0 areas)
+Area without category: 0 (0 areas)

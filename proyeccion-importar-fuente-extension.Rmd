@@ -67,13 +67,7 @@ execGRASS(
 ## Actualizar la extensión de la región al DEM, sólo por precaución
 
 ```{r}
-execGRASS(
-  cmd = 'g.region',
-  parameters=list(
-    raster = 'dem',
-    align = 'dem'
-  )
-)
+
 ```
 
 ## Mostrar la definición de la región
